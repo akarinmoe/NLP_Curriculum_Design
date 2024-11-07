@@ -105,9 +105,13 @@ for epoch in range(num_epochs):
         x = linear1.forward(x_batch)
         x = sigmoid.forward(x)
         x = torch.tensor(x, dtype=torch.float32).to(device)
-        x, hidden_states = model.lstm.forward(x)
-        x = x.cpu().detach().numpy()
-        x = linear2.forward(x)
+        
+        # LSTM forward pass
+        lstm_out, hidden_states = model.lstm.forward(x)
+        lstm_out = lstm_out.cpu().detach().numpy()
+        
+        # Fully connected layer and softmax
+        x = linear2.forward(lstm_out)
         predictions = softmax.forward(x)
 
         # Compute loss
@@ -115,22 +119,30 @@ for epoch in range(num_epochs):
         total_loss += loss
 
         # Backward pass
-        grad_loss = criterion.backward()
+        grad_loss = criterion.backward(predictions, y_batch)  # Grad w.r.t. the predictions
+
+        # Backward through second linear layer
         grad_linear2 = linear2.backward(grad_loss)
         
-        # Propagate through LSTM backward pass
+        # Backpropagate through the LSTM using custom backward
         lstm_grad_output, lstm_hidden_grad = grad_linear2, None
-        for t in reversed(range(seq_length)):
-            lstm_grad_output, lstm_hidden_grad = model.lstm.backward(lstm_grad_output, lstm_hidden_grad)
+        grad_w_i2h, grad_w_h2h = model.lstm.backward(lstm_grad_output, lstm_hidden_grad)
         
+        # Backprop through the sigmoid and first linear layer
         grad_sigmoid = sigmoid.backward(lstm_grad_output)
         grad_linear1 = linear1.backward(grad_sigmoid)
 
         # Update weights
         linear1.update(learning_rate)
         linear2.update(learning_rate)
+        
+        # Update LSTM weights manually using computed gradients
+        for layer in range(model.lstm.num_layers):
+            model.lstm.cells[layer].i2h.weight.data -= learning_rate * grad_w_i2h[layer]
+            model.lstm.cells[layer].h2h.weight.data -= learning_rate * grad_w_h2h[layer]
 
     print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {total_loss:.4f}")
+
 
 def predict_next(input_array, temperature=1.0, top_k=8, top_p=1.0):
     if len(input_array) < seq_length:
