@@ -34,18 +34,18 @@ class LSTMCell(nn.Module):
 
         # Compute gradients w.r.t. output gate
         grad_o_gate = grad_h * torch.tanh(c_new)
-        grad_o_gate *= o_gate * (1 - o_gate)  # sigmoid derivative
+        grad_o_gate *= o_gate * (1 - o_gate)
         
         # Compute gradients w.r.t. cell state
         grad_c_new = grad_h * o_gate * (1 - torch.tanh(c_new) ** 2) + grad_c
         grad_f_gate = grad_c_new * c_prev
-        grad_f_gate *= f_gate * (1 - f_gate)  # sigmoid derivative
+        grad_f_gate *= f_gate * (1 - f_gate)
         
         grad_i_gate = grad_c_new * c_gate
-        grad_i_gate *= i_gate * (1 - i_gate)  # sigmoid derivative
+        grad_i_gate *= i_gate * (1 - i_gate)
 
         grad_c_gate = grad_c_new * i_gate
-        grad_c_gate *= (1 - c_gate ** 2)  # tanh derivative
+        grad_c_gate *= (1 - c_gate ** 2)
         
         # Compute gradients w.r.t. inputs and weights
         grad_combined = torch.cat([grad_i_gate, grad_f_gate, grad_c_gate, grad_o_gate], dim=1)

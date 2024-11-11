@@ -1,6 +1,6 @@
 import numpy as np
 
-class Sigmoid:
+class CustomSigmoid:
     def __init__(self):
         self.out = None
 
